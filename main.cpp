@@ -68,21 +68,16 @@ int sc_main(int argc, char* argv[])
   
   cout<<hex;
   for(int i = 0; i < 1000; i ++){
-    dram->mem[i] = i+1000;
+    dram->mem[i] = i+0x1000;
   }
   addr_src.write(0x000000);
   addr_dst.write(0x400000);
   size.write(100);
   d2s.write(1);
-  sc_start(1, SC_NS);
   start.write(1);
-  // for(int i = 0; i < 10; i ++){
-  //   m_addr.write(i*4);
-  //   wr_enable.write(0);
-  //   sc_start(5, SC_NS);
-  //   cout<<data_out.read()<<endl;
-  // }
+  
   sc_start();
+  cout<<sc_time_stamp();
   for(int i = 0x100000; i < 0x100000+25; i ++){
     cout<<i<<' '<<sram->mem[i]<<endl;
   }

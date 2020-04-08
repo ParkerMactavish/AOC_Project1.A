@@ -31,8 +31,7 @@ struct DMAC: sc_module
   }
 
   void thread_process();
-  void access_dram(uint32_t addr,uint32_t & data,bool write, int length);
-  void access_sram(uint32_t addr,uint32_t & data,bool write, int length);
+  void master_access(uint32_t addr,uint32_t & data,bool write, int length, CS select);
   // TLM-2 backward non-blocking transport method
   virtual tlm::tlm_sync_enum nb_transport_bw( tlm::tlm_generic_payload& trans,
                                               tlm::tlm_phase& phase, sc_time& delay );
