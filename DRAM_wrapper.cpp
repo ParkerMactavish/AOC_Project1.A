@@ -43,7 +43,6 @@
   {
     while(1)
     {
-      cout<<"CLK"<<endl;
       temp_addr = dram_addr_i.read();
       if(wr_enable.read()){
         data_write[0] = data.read();
@@ -52,9 +51,9 @@
       else{
         master_access(temp_addr,*data_read,0, DATA_LENGTH/8);//read  length=1
         dram_dataout_i.write(data_read[0]);
-        if(tmpIsResp) sc_stop();
       }
       wait( sc_time(CLK_CYCLE, SC_NS) );
+      cout<<"CLK"<<endl;
     }
   }
 
@@ -83,7 +82,6 @@
 
     if (phase == tlm::BEGIN_RESP)
     {
-      cout<<"WTF"<<phase<<hex<<data_read[0]<<' '<<endl;
       trans.release();
       tlm::tlm_phase fw_phase = tlm::END_RESP;
       sc_time delay = sc_time(0, SC_PS);

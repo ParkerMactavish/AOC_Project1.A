@@ -85,7 +85,7 @@
           if(start.read()){
             addr_src = paddr_src.read();
             addr_dst = paddr_dst.read();
-            size = psize.read()/4;
+            size = psize.read();
             d2s = pd2s.read();
             cout<<addr_src<<' '<<addr_dst<<' '<<size<<endl;
             if(pd2s.read()){
@@ -158,4 +158,3 @@
       }
     }
   }
-

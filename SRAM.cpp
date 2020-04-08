@@ -44,7 +44,7 @@ void SRAM::peq_cb(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase)
             //   status = send_end_req( *end_req_pending );
             //   end_req_pending = 0;
             // }
-            
+            //cout<<"SRAM release"<<endl;
             break;
 
         case tlm::END_REQ:
@@ -53,7 +53,7 @@ void SRAM::peq_cb(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase)
             break;
 
         default:
-            if (phase == internal_ph) {
+            if (phase == internal_sram_ph) {
                 // Execute the read or write commands
 
                 tlm::tlm_command cmd = trans.get_command();
@@ -80,7 +80,7 @@ tlm::tlm_sync_enum SRAM::send_end_req(tlm::tlm_generic_payload& trans)
 {
     tlm::tlm_sync_enum status;
     tlm::tlm_phase bw_phase;
-    tlm::tlm_phase int_phase = internal_ph;
+    tlm::tlm_phase int_phase = internal_sram_ph;
     tlm::tlm_command cmd = trans.get_command();
     int addr = trans.get_address();
     sc_time delay;
@@ -111,6 +111,7 @@ void SRAM::send_response(tlm::tlm_generic_payload& trans)
     //response_in_progress = true;
     bw_phase = tlm::BEGIN_RESP;
     delay = SC_ZERO_TIME;
+    //cout<<"SRAM"<<endl;
     status = socket->nb_transport_bw( trans, bw_phase, delay );
     if (status == tlm::TLM_UPDATED) {
         // The timing annotation must be honored

@@ -8,12 +8,11 @@
 #include "general_function.h"
 #include "tlm_utils/simple_target_socket.h"
 #include "tlm_utils/peq_with_cb_and_phase.h"
-#include "DRAM.h"
 
 // Needed for the simple_target_socket
 #define SC_INCLUDE_DYNAMIC_PROCESSES
 
-//DECLARE_EXTENDED_PHASE(internal_ph);
+DECLARE_EXTENDED_PHASE(internal_sram_ph);
 using namespace std;
 
 struct SRAM: sc_module {
