@@ -9,4 +9,5 @@ DMAC and SRAM design and test
 5. start是enable
 ---
 【Note】
-1. 在main讀寫mem都是以4個byte為單位
+1. 正常讀寫是以1個byte為單位(0~0x800000)
+2. mem是以4個byte為單位(0~0x200000)
