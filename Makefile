@@ -6,7 +6,7 @@ LIB=-lsystemc -lm
 
 EXE=RESULT
 
-APP_SRC= main.cpp DRAM_wrapper.cpp DRAM.cpp SRAM.cpp mm.cpp DMAC.cpp
+APP_SRC= main.cpp DRAM_wrapper.cpp DRAM.cpp SRAM.cpp mm.cpp DMAC.cpp Testbench.cpp
 
 all:
 	g++ -Wall -g -o $(EXE) $(APP_SRC) $(LIB_DIR) $(INC_DIR) $(LIB)
