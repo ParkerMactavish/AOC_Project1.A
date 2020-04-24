@@ -65,11 +65,13 @@ int sc_main(int argc, char* argv[])
 
   wait_self->int_in(interrupt);
   sc_trace_file* tf = sc_create_vcd_trace_file("wave");
+    Testbench tb("data/config.txt",dram,sram);
+  tb.begin();
   
   cout<<hex;
-  for(int i = 0; i < 1000; i ++){
+ /* for(int i = 0; i < 1000; i ++){
     dram->mem[i] = i+1000;
-  }
+  }*/
   addr_src.write(0x000000);
   addr_dst.write(0x400000);
   size.write(100);
@@ -87,7 +89,7 @@ int sc_main(int argc, char* argv[])
     cout<<i<<' '<<sram->mem[i]<<endl;
   }
   cout << "\n*****    Finish     *****\n";
-
+tb.end();
   sc_close_vcd_trace_file(tf);
   return 0;
 }
