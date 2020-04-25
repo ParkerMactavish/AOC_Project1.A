@@ -4,7 +4,7 @@
 
 SC_MODULE(MAC)
 {
-    sc_in <bool> enable;
+    //sc_in <bool> enable;
     sc_in<uint32_t> weight,input ;
 
     uint32_t result_mac;
@@ -18,6 +18,8 @@ SC_MODULE(MAC)
     }
 
     SC_CTOR(MAC) {
-
+        SC_METHOD(multi);
+        sensitive<<weight;
+        sensitive<<input;
     }
 };
