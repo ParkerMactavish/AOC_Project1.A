@@ -4,6 +4,10 @@
 #include "SRAM.h"
 #include "DRAM.h"
 #include "DRAM_wrapper.h"
+#include"Testbench.h"
+#include "Controller.h"
+#include"PE_wrapper.h"
+#include"PE.h"
 
 SC_MODULE(wait_int){
   sc_in<bool> int_in;
@@ -64,32 +68,88 @@ int sc_main(int argc, char* argv[])
 
 
   wait_self->int_in(interrupt);
-  sc_trace_file* tf = sc_create_vcd_trace_file("wave");
-    Testbench tb("data/config.txt",dram,sram);
-  tb.begin();
+
+
+
+//   char* name[20];
+//   int num = 25;
+//   sc_signal<uint32_t>  sig[num];
+//   sc_out<uint32_t> _mem[num];
+//   for(int i=0; i<num; i++)
+//     _mem[i](sig[i]);
+//   for(int i=0; i<num; i++)
+//     _mem[i].write(sram->mem[i+0x100000]);
+
+//   int j=0;
+//   sc_trace_file* tf = sc_create_vcd_trace_file("wave");
+//  for(int i = 0x100000; i < 0x100000+num; i ++){
+//    sprintf(name,"%x\0",i);
+//     sc_trace(tf,sig[j],name);
+//     j++;
+//   }
   
+
+// -----------------Controller--------------------------//
+sc_signal<bool> enable;
+sc_signal<bool> which;
+//sc_signal<bool> finish;
+//sc_signal<bool>  pe_enable;
+//sc_signal<uint32_t>  addr[PESIZE];
+Controller* con = new Controller("controller");
+PEwrapper * wrapper  = new PEwrapper("pewrapper");
+con->enable(enable);
+con->which(which);
+wrapper->pe_write=&(con->pe_write);
+con->pe_enable=&(wrapper->pe_enable);
+
+con->sram_ifirst = sram;
+con->sram_weight=sram;
+con->pe_mem=PE::pe_mem;
+for(int i=0; i<NUM_PE; i++)
+  con->pe_local[i]=wrapper->pe_vec[i]->pe_local;
+con->input_len = 5; 
+PE::input_len = 5;
+enable.write(1);
+which.write(0);
+
+for(int i = 0x000000; i < 0x000000+SIZE_TILE; i ++){
+    sram->mem[i]=i;
+  }
+
   cout<<hex;
- /* for(int i = 0; i < 1000; i ++){
-    dram->mem[i] = i+1000;
-  }*/
-  addr_src.write(0x000000);
-  addr_dst.write(0x400000);
-  size.write(100);
-  d2s.write(1);
-  sc_start(1, SC_NS);
-  start.write(1);
+  // for(int i = 0; i < 1000; i ++){
+  //   dram->mem[i] = i+1000;
+  // }
+  // addr_src.write(0x000000);
+  // addr_dst.write(0x000000);
+  // size.write(100);
+  // d2s.write(1);
+  // sc_start(1, SC_NS);
+  // start.write(1);
+
   // for(int i = 0; i < 10; i ++){
   //   m_addr.write(i*4);
   //   wr_enable.write(0);
   //   sc_start(5, SC_NS);
   //   cout<<data_out.read()<<endl;
   // }
-  sc_start();
-  for(int i = 0x100000; i < 0x100000+25; i ++){
-    cout<<i<<' '<<sram->mem[i]<<endl;
-  }
+  sc_start(10*CLK_CYCLE, SC_NS);
+  // for(int i = 0x000000; i < 0x000000+25; i ++){
+  //   cout<<i<<' '<<sram->mem[i]<<endl;
+  // }
+
+
+//   cout<<"---------------Controller-------------------"<<endl;
+//   cout<<"ibuffer:"<<endl;
+//   for(int i = 0; i <SIZE_TILE; i ++){
+//     cout<<i<<' '<<con->ibuffer[i]<<endl;
+//   }
+// cout<<"wbuffer:"<<endl;
+//  for(int i = 0; i <SIZE_MAC; i ++)
+//       cout<<i<<' '<<con->wbuffer[0][i]<<endl;
+
+  
   cout << "\n*****    Finish     *****\n";
-tb.end();
-  sc_close_vcd_trace_file(tf);
+
   return 0;
 }
