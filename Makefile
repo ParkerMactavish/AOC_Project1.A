@@ -6,8 +6,10 @@ LIB=-lsystemc -lm
 
 EXE=RESULT
 
-APP_SRC= main.cpp DRAM_wrapper.cpp DRAM.cpp SRAM.cpp mm.cpp DMAC.cpp 
-TEST_SRC= Testbench.cpp
+<<<<<<< HEAD
+=======
+APP_SRC= main.cpp DRAM_wrapper.cpp DRAM.cpp SRAM.cpp mm.cpp DMAC.cpp Testbench.cpp Controller.cpp PE_wrapper.cpp PE.cpp
+>>>>>>> feature/newPE
 
 all:
 	g++ -Wall -g -o $(EXE) $(addprefix ./src/, $(APP_SRC)) $(addprefix ./testbench/, $(TEST_SRC)) $(LIB_DIR) $(INC_DIR) $(LIB)

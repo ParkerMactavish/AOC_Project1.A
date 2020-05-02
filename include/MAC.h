@@ -1,6 +1,8 @@
 #include "systemc.h"
 #include "ps_config.h"
 #define DEBUG
+#ifndef MAC_H
+#define MAC_H
 
 SC_MODULE(MAC)
 {
@@ -23,3 +25,5 @@ SC_MODULE(MAC)
         sensitive<<input;
     }
 };
+
+#endif

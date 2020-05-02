@@ -26,10 +26,10 @@
 #define DATA_LENGTH (32) 
 #define DATA_BUS_BANDWIDTH (256)        //Configuable
 
-//#define SIZE_TILE(5*5)
-//#define SIZE_KERNEL(3*3)
+#define SIZE_TILE (16)
 #define  NUM_MAC (1)
 #define  NUM_PE (1)
+#define SIZE_MAC (3*3)
 
 //~~~~~~~~
 //  DRAM
