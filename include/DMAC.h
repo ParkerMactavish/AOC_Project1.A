@@ -14,12 +14,18 @@ enum state{
 
 struct DMAC: sc_module
 {
-  // TLM-2 socket, defaults to 32-bits wide, base protocol
-  tlm_utils::simple_initiator_socket<DMAC> dram_socket, sram_socket;
+  /* Connection between DMAC and DRAM, SRAM */
+  tlm_utils::simple_initiator_socket<DMAC> skiToDRAM, skiToSRAM[3];
+
+  /* Connection between Controller and DMAC */
+  tlm_utils::simple_target_socket<DMAC> sktFromController;
 
   SC_CTOR(DMAC)
-  : dram_socket("dram_socket")  // Construct and name socket
-  , sram_socket("sram_socket")
+  : skiToDRAM("ToDRAM")  // Construct and name socket
+  , skiToSRAM[0]("ToInputSRAM1")
+  , skiToSRAM[1]("ToInputSRAM2")
+  , skiToSRAM[2]("ToOutputSRAM")
+  , sktFromController("FromController")
   , request_in_progress(0)
   , m_peq(this, &DMAC::peq_cb)
   , currentState(sIdle)
@@ -49,7 +55,6 @@ struct DMAC: sc_module
 
   sc_in<sc_uint<ADDR_LENGTH> > paddr_src, paddr_dst, psize;
   sc_in<bool> pd2s;
-  sc_in<sc_uint<1> > start;
   sc_out<bool> interrupt;
 };
 #endif

@@ -1,15 +1,16 @@
 LIB_DIR=-L/usr/local/systemc-2.3.3/lib-linux64 -Wl,-rpath=/usr/local/systemc-2.3.3/lib-linux64
 
-INC_DIR=-I/usr/local/systemc-2.3.3/include
+INC_DIR=-I/usr/local/systemc-2.3.3/include -I./include
 
 LIB=-lsystemc -lm
 
 EXE=RESULT
 
-APP_SRC= main.cpp DRAM_wrapper.cpp DRAM.cpp SRAM.cpp mm.cpp DMAC.cpp Testbench.cpp
+APP_SRC= main.cpp DRAM_wrapper.cpp DRAM.cpp SRAM.cpp mm.cpp DMAC.cpp 
+TEST_SRC= Testbench.cpp
 
 all:
-	g++ -Wall -g -o $(EXE) $(APP_SRC) $(LIB_DIR) $(INC_DIR) $(LIB)
+	g++ -Wall -g -o $(EXE) $(addprefix ./src/, $(APP_SRC)) $(addprefix ./testbench/, $(TEST_SRC)) $(LIB_DIR) $(INC_DIR) $(LIB)
 	./$(EXE)
 
 clean:
