@@ -6,23 +6,13 @@
 
 SC_MODULE(MAC)
 {
-    //sc_in <bool> enable;
-    sc_in<uint32_t> weight,input ;
+    sc_in<sc_uint<8> > piWeight, piInput;
+    sc_out<sc_uint<8> > poResult;
 
-    uint32_t result_mac;
-
-    void multi( )
-    {
-        result_mac = weight.read()*input.read();
-        #ifdef DEBUG
-            cout<<weight.read()<<" x "<<input.read()<<"="<<result_mac<<endl;
-        #endif
-    }
-
+    void multi( );
     SC_CTOR(MAC) {
         SC_METHOD(multi);
-        sensitive<<weight;
-        sensitive<<input;
+        sensitive<<piWeight<<piInput;
     }
 };
 

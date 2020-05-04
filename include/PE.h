@@ -1,62 +1,42 @@
 #include "systemc.h"
 #include "MAC.h"
-#define DEBUG
-#ifndef PE_H
-#define PE_H
+#ifndef _PE_H
+#define _PE_H
 
-SC_MODULE(PE)
-{
-    //sc_out <uint32_t>sum;
-    // sc_out<uint32_t> weight_pe[NUM_MAC];
-    // sc_out<uint32_t> input_pe[NUM_MAC];
-    //sc_out<bool> pe_finish;
+#define PEDisable     0xb
+#define PEOldDataEn   0xa
+#define PEOldDataDis  0x9
 
-    uint32_t pe_local[SIZE_MAC];//different kernel for different pe
-    static uint32_t pe_mem[SIZE_MAC];//same input for all pe
-    static int input_len;           //how  many input data available
+SC_MODULE(PEU){
+  /* Connection between PE and PE wrapper */
+  sc_in_clk piClk;
+  sc_in<sc_uint<8> > piWeightOlddata;
+  sc_in<sc_uint<4> > piWeightaddrOldenPEen;
+  sc_in<sc_uint<8> > vpiInputData[NUM_MAC];
+  
+  sc_out<sc_uint<8> > poOutputData;
 
-    //MAC mac_arr[NUM_MAC];
-    //sc_vector <MAC> mac_vec;
-    uint32_t macs[SIZE_MAC];
+  /* Connection between PE and MAC */
+  sc_signal<sc_uint<8> > vsgMACWeight[NUM_MAC];
+  sc_signal<sc_uint<8> > vsgMACResult[NUM_MAC];
+  sc_signal<sc_uint<8> > vsgMACInput[NUM_MAC];
 
-    void work_pe()
-    {
-        // for(int i=0 ; i<NUM_MAC ; i++)
-        // {
-        //     weight_pe[i].write(pe_local[i]);
-        //     input_pe[i].write(pe_mem[i]);
-        // }
-        // for(int i=0 ; i<NUM_MAC ; i++)
-        // {
-        //     mac_vec[i].multi();
-        // }
-        acc();
-        //wait();
+  sc_vector<MAC> vMACArr;
+
+  void threadProcess();
+  void update_Input();
+
+  SC_CTOR(PEU)
+  : vMACArr("MAC_arr", NUM_MAC){
+    for(int index = 0; index < NUM_MAC; index++){
+      vMACArr[index].piWeight(vsgMACWeight[index]);
+      vMACArr[index].poResult(vsgMACResult[index]);
+      vMACArr[index].piInput(vsgMACInput[index]);
     }
-    void acc(){
-            // sum.write(0);
-            // for(int i=0 ; i<NUM_MAC;i++){
-            //     sum.write(sum.read()+mac_vec[i].result_mac);
-            // }
-            int temp = 0;
-            for(int i=0; i<PE::input_len;  i++){
-                temp+=PE::pe_mem[i]*pe_local[i];
-                cout<<PE::pe_mem[i]<<"*"<<pe_local[i]<<endl;
-            }
-            cout<<temp;
-    }
-
-
-    SC_CTOR(PE)
-    //: mac_vec("mac_vec",NUM_MAC)
-    {
-        // for(int i=0 ; i<NUM_MAC ; i++)
-        // {
-        //     mac_vec[i].weight(weight_pe[i]);
-        //     mac_vec[i].input(input_pe[i]);
-        //     //mac1.weight(weight_pe[i]);
-        //     //mac1.input(input_pe[i]);
-        // }
-    }
+    SC_CTHREAD(threadProcess, piClk.pos());
+    SC_METHOD(update_Input);
+    for(int index = 0; index < NUM_MAC; index ++)
+      sensitive<<vpiInputData[index];
+  }
 };
 #endif

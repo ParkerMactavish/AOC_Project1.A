@@ -1,13 +1,17 @@
 //#include "top_module.h"
 
+#ifdef PE
+#include "PE_top.h"
+#else
 #include "DMAC.h"
 #include "SRAM.h"
 #include "DRAM.h"
 #include "DRAM_wrapper.h"
-#include"Testbench.h"
 #include "Controller.h"
 #include"PE_wrapper.h"
 #include"PE.h"
+#include"Testbench.h"
+#endif
 
 SC_MODULE(wait_int){
   sc_in<bool> int_in;
@@ -27,6 +31,13 @@ void wait_int::trigger(){ //<< Did you mean this instead of Thread class
   }
 }
 
+#ifdef PE
+int sc_main(int argc, char* argv[]){
+  PE_TOP* top = new PE_TOP("TOP");
+  sc_start();
+  return 0;
+}
+#else
 int sc_main(int argc, char* argv[])
 {
   // DRAM_wrapper *dram_wrapper; //initiator
@@ -153,3 +164,4 @@ for(int i = 0x000000; i < 0x000000+SIZE_TILE; i ++){
 
   return 0;
 }
+#endif
