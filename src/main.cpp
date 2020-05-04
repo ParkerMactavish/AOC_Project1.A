@@ -2,6 +2,8 @@
 
 #ifdef PE
 #include "PE_top.h"
+#elif PEwrapper
+#include "PEwrapper_top.h"
 #else
 #include "DMAC.h"
 #include "SRAM.h"
@@ -34,6 +36,12 @@ void wait_int::trigger(){ //<< Did you mean this instead of Thread class
 #ifdef PE
 int sc_main(int argc, char* argv[]){
   PE_TOP* top = new PE_TOP("TOP");
+  sc_start();
+  return 0;
+}
+#elif PEwrapper
+int sc_main(int argc, char* argv[]){
+  PEwrapper_top* top = new PEwrapper_top("TOP");
   sc_start();
   return 0;
 }

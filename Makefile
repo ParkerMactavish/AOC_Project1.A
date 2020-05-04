@@ -12,13 +12,21 @@ PE_SRC = main.cpp MAC.cpp PE.cpp
 
 PE_TEST = PE_top.cpp
 
+PEwrapper_SRC = $(PE_SRC) PE_wrapper.cpp
+
+PEwrapper_TEST = PEwrapper_top.cpp
+
 all:
 	g++ -Wall -g -o $(EXE) $(addprefix ./src/, $(APP_SRC)) $(addprefix ./testbench/, $(TEST_SRC)) $(LIB_DIR) $(INC_DIR) $(LIB)
 	./$(EXE)
 
 pe:
-	g++ -Wall -g -o $(EXE) $(addprefix ./src/, $(PE_SRC)) $(addprefix ./testbench/, $(PE_TEST)) $(LIB_DIR) $(INC_DIR) $(LIB) -D PE
-	./$(EXE)
+	g++ -Wall -g -o PE_TOP $(addprefix ./src/, $(PE_SRC)) $(addprefix ./testbench/, $(PE_TEST)) $(LIB_DIR) $(INC_DIR) $(LIB) -D PE
+	./PE_TOP
+
+pewrapper:
+	g++ -Wall -g -o PEwrapper_TOP $(addprefix ./src/, $(PEwrapper_SRC)) $(addprefix ./testbench/, $(PEwrapper_TEST)) $(LIB_DIR) $(INC_DIR) $(LIB) -D PEwrapper
+	./PEwrapper_TOP
 
 clean:
 	rm -rf $(APP_SRC:%.cpp=%.o) $(EXE) *.vcd *.fsdb *Log novas*

@@ -1,5 +1,6 @@
 #include "systemc.h"
 #include "MAC.h"
+#include "ps_config.h"
 #ifndef _PE_H
 #define _PE_H
 
@@ -23,8 +24,9 @@ SC_MODULE(PEU){
 
   sc_vector<MAC> vMACArr;
 
-  void threadProcess();
+  void set_Weight();
   void update_Input();
+  void update_Output();
 
   SC_CTOR(PEU)
   : vMACArr("MAC_arr", NUM_MAC){
@@ -33,10 +35,13 @@ SC_MODULE(PEU){
       vMACArr[index].poResult(vsgMACResult[index]);
       vMACArr[index].piInput(vsgMACInput[index]);
     }
-    SC_CTHREAD(threadProcess, piClk.pos());
+    SC_CTHREAD(set_Weight, piClk.pos());
     SC_METHOD(update_Input);
     for(int index = 0; index < NUM_MAC; index ++)
       sensitive<<vpiInputData[index];
+    SC_METHOD(update_Output);
+    for(int index = 0; index < NUM_MAC; index ++)
+      sensitive<<vsgMACResult[index];
   }
 };
 #endif
