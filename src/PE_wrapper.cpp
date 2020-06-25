@@ -1,6 +1,6 @@
 #include "PE_wrapper.h"
 
-void PEUs::select_WeightOlddata_Output(){
+void PEs::select_WeightOlddata_Output(){
   switch(piPEsState.read()){
     case sWeightAddrIncFrom0:
       for(uint8_t index = 0; index < piNumPEEnable.read(); index ++)
@@ -38,7 +38,7 @@ void PEUs::select_WeightOlddata_Output(){
   }
 }
 
-void PEUs::update_InputData(){
+void PEs::update_InputData(){
   for(uint8_t index = 0; index < NUM_PE; index ++){
     for(uint8_t index2 = 0; index2 < NUM_MAC; index2 ++){
       vsgInputData[index][index2] = (index<16)?vpiInputData[0][index2]
@@ -47,13 +47,13 @@ void PEUs::update_InputData(){
   }
 }
 
-void PEUs::pass_Clock(){
+void PEs::pass_Clock(){
   for(uint8_t index = 0; index < NUM_PE; index ++){
     vsgClock[index] = piClk;
   }
 }
 
-void PEUs::set_WeightaddrOldenPEen(){
+void PEs::set_WeightaddrOldenPEen(){
   while(1){
     switch(piPEsState.read()){
       case sWeightAddrClear:

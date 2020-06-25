@@ -3,7 +3,7 @@
  *
  *  This contains DRAM module
  *
- *  @author: HarveyZeng (caslab), LanceHuang (caslab)
+ *  @Author: HarveyZeng (caslab), LanceHuang (caslab)
  *
  *  @bug No known bugs.
  */

@@ -4,13 +4,14 @@
 #include "systemc.h"
 
 SC_MODULE(PE_TOP){
-  PEU UUT;
+  PE UUT;
   sc_time PRD;
   sc_signal<bool> clk;
-  sc_signal<sc_uint<8> > sgWeightOlddata;
+  sc_signal<sc_int<64> > sgWeightOlddata;
   sc_signal<sc_uint<4> > sgWeightaddrOldenPEen;
-  sc_signal<sc_uint<8> > vsgInputData[NUM_MAC];
-  sc_signal<sc_uint<8> > sgOutputData;
+  sc_signal<sc_uint<2> > sgActivationFunction;
+  sc_signal<sc_int<32> > vsgInputData[NUM_MAC];
+  sc_signal<sc_int<64> > sgOutputData;
 
   void threadProcess();
 
@@ -23,6 +24,8 @@ SC_MODULE(PE_TOP){
     for(int i = 0; i < NUM_MAC; i ++)
       UUT.vpiInputData[i](vsgInputData[i]);
     UUT.poOutputData(sgOutputData);
+    UUT.piActivationFunction(sgActivationFunction);
+    sgActivationFunction.write(0);
     SC_THREAD(threadProcess);
   }
 };

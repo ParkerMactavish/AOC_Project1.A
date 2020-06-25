@@ -9,36 +9,44 @@
 #include "tlm_utils/simple_target_socket.h"
 #include "tlm_utils/peq_with_cb_and_phase.h"
 
-// Needed for the simple_target_socket
-#define SC_INCLUDE_DYNAMIC_PROCESSES
+// // Needed for the simple_target_socket
+// #define SC_INCLUDE_DYNAMIC_PROCESSES
+DECLARE_EXTENDED_PHASE(internalPhase);
 
-DECLARE_EXTENDED_PHASE(internal_sram_ph);
 using namespace std;
+using namespace tlm;
+using namespace tlm_utils;
 
-struct SRAM: sc_module {
-    // TLM-2 socket, defaults to 32-bits wide, base protocol
-    tlm_utils::simple_target_socket<SRAM> socket;
+struct SRAM : ::sc_core::sc_module{
+  peq_with_cb_and_phase<SRAM> m_peq;
+  uint32_t *u32Mem,
+           u32BaseAddr,
+           u32MemSize; 
+  int n_trans;
+  /* Socket Conneted to DMAC */
+  simple_target_socket<SRAM> sktFromDMAC;
 
-    SC_CTOR(SRAM)
-        : socket("socket")
-        , m_peq(this, &SRAM::peq_cb)
-    {
-        // Register callbacks for incoming interface method calls
-        socket.register_nb_transport_fw(this, &SRAM::nb_transport_fw);
-        for(int i=0; i<(MEM_SIZE/4); i++){
-            mem[i] = 0;
-        }
-    }
+  virtual tlm_sync_enum nb_transport_fw(tlm_generic_payload& trans,
+                                        tlm_phase& phase,
+                                        sc_time& delay );
+  void peq_cb(tlm_generic_payload& trans, const tlm_phase& phase);;
+  void send_response(tlm::tlm_generic_payload& trans);
+  tlm::tlm_sync_enum send_end_req(tlm::tlm_generic_payload& trans);
 
-    // TLM-2 non-blocking transport method
-
-    virtual tlm::tlm_sync_enum nb_transport_fw( tlm::tlm_generic_payload& trans,
-            tlm::tlm_phase& phase, sc_time& delay );
-    void peq_cb(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase);
-    tlm::tlm_sync_enum send_end_req(tlm::tlm_generic_payload& trans);
-    void send_response(tlm::tlm_generic_payload& trans);
-    tlm_utils::peq_with_cb_and_phase<SRAM> m_peq;
-    uint32_t mem[MEM_SIZE/4]; // 256MB(8B * 0x2000000)
+  typedef SRAM SC_CURRENT_USER_MODULE;
+  SRAM(
+    ::sc_core::sc_module_name,
+    uint32_t u32BaseAddr,
+    uint32_t u32MemSize
+  )
+  : sktFromDMAC("socket")
+  , u32BaseAddr(u32BaseAddr)
+  , u32MemSize(u32MemSize)
+  , m_peq(this, &SRAM::peq_cb)
+  , n_trans(0) {
+    // Register callbacks for incoming interface method calls
+    sktFromDMAC.register_nb_transport_fw(this, &SRAM::nb_transport_fw);
+    u32Mem = new uint32_t[u32MemSize/4];
+  }
 };
-
 #endif

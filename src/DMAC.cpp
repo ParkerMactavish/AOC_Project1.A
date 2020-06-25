@@ -1,160 +1,231 @@
 #include "DMAC.h"
 
-  void DMAC::access_dram(uint32_t addr,uint32_t& data,bool write,int length)
-  {
-    tlm::tlm_generic_payload* trans;
-    tlm::tlm_phase phase;
-    tlm::tlm_command cmd ;
-    sc_time delay;
-    if(write==1)
-    {
-      cmd = tlm::TLM_WRITE_COMMAND; 
-    }
-    else
-    {
-      cmd = tlm::TLM_READ_COMMAND; 
-    }
-    // Grab a new transaction from the memory manager
-    trans = m_mm.allocate();
-    trans->acquire();
-
-    // Set all attributes except byte_enable_length and extensions (unused)
-    trans->set_command( cmd );
-    trans->set_address( addr );
-    trans->set_data_ptr( reinterpret_cast<unsigned char*>(&data) );
-    trans->set_data_length( length ); //data length is 
-    trans->set_streaming_width( length ); // = data_length to indicate no streaming
-    trans->set_byte_enable_ptr( 0 ); // 0 indicates unused
-    trans->set_dmi_allowed( false ); // Mandatory initial value
-    trans->set_response_status( tlm::TLM_INCOMPLETE_RESPONSE ); // Mandatory initial value
-    // cout<<"length"<<length<<endl<<"addr"<<addr<<endl;
-    phase = tlm::BEGIN_REQ;
-
-    // Timing annotation models processing time of initiator prior to call
-    delay = sc_time(0, SC_PS);
-
-    // Non-blocking transport call on the forward path
-    tlm::tlm_sync_enum status;
-    status = dram_socket->nb_transport_fw( *trans, phase, delay );
+DMAC::accessStatus DMAC::access_Mem(uint32_t u32Addr, uint32_t& u32Data, bool bWrite, int iLength){
+  if(!bMemAvailable[get_PortId(u32Addr)])
+    return BUSY;
+  tlm::tlm_generic_payload* tlmTrans;
+  tlm::tlm_phase tlmPhase;
+  tlm::tlm_command tlmCmd;
+  sc_time delay = SC_ZERO_TIME;
+  if(bWrite==1){
+    tlmCmd = tlm::TLM_WRITE_COMMAND; 
   }
-  
-  void DMAC::access_sram(uint32_t addr,uint32_t& data,bool write,int length)
-  {
-    tlm::tlm_generic_payload* trans;
-    tlm::tlm_phase phase;
-    tlm::tlm_command cmd ;
-    sc_time delay;
-    if(write==1)
-    {
-      cmd = tlm::TLM_WRITE_COMMAND; 
-    }
-    else
-    {
-      cmd = tlm::TLM_READ_COMMAND; 
-    }
-    // Grab a new transaction from the memory manager
-    trans = m_mm.allocate();
-    trans->acquire();
-
-    // Set all attributes except byte_enable_length and extensions (unused)
-    trans->set_command( cmd );
-    trans->set_address( addr );
-    trans->set_data_ptr( reinterpret_cast<unsigned char*>(&data) );
-    trans->set_data_length( length ); //data length is 
-    trans->set_streaming_width( length ); // = data_length to indicate no streaming
-    trans->set_byte_enable_ptr( 0 ); // 0 indicates unused
-    trans->set_dmi_allowed( false ); // Mandatory initial value
-    trans->set_response_status( tlm::TLM_INCOMPLETE_RESPONSE ); // Mandatory initial value
-    // cout<<"length"<<length<<endl<<"addr"<<addr<<endl;
-    phase = tlm::BEGIN_REQ;
-
-    // Timing annotation models processing time of initiator prior to call
-    delay = sc_time(0, SC_PS);
-
-    // Non-blocking transport call on the forward path
-    tlm::tlm_sync_enum status;
-    status = sram_socket->nb_transport_fw( *trans, phase, delay );
+  else{
+    tlmCmd = tlm::TLM_READ_COMMAND; 
   }
+  // Grab a new transaction from the memory manager
+  tlmTrans = m_mm.allocate();
+  tlmTrans->acquire();
+  // Set all attributes except byte_enable_length and extensions (unused)
+  tlmTrans->set_command(tlmCmd);
+  tlmTrans->set_address(u32Addr);
+  tlmTrans->set_data_ptr(reinterpret_cast<unsigned char*>(&u32Data));
+  tlmTrans->set_data_length(iLength); //data length is 
+  tlmTrans->set_streaming_width(iLength); // = data_length to indicate no streaming
+  tlmTrans->set_byte_enable_ptr(0); // 0 indicates unused
+  tlmTrans->set_dmi_allowed(false); // Mandatory initial value
+  tlmTrans->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE); // Mandatory initial value
+  tlmPhase = tlm::BEGIN_REQ;
 
-  void DMAC::thread_process()
-  {
-    while(1)
-    {
-      switch(currentState){
-        case sIdle:
-          if(start.read()){
-            addr_src = paddr_src.read();
-            addr_dst = paddr_dst.read();
-            size = psize.read();
-            d2s = pd2s.read();
-            cout<<addr_src<<' '<<addr_dst<<' '<<size<<endl;
-            if(pd2s.read()){
-              access_dram(paddr_src.read(), data, DRIVER_READ, DATA_LENGTH/8);
-            }
-            interrupt.write(0);
-            currentState = sRead;
-          }
-          break;
-        case sRead:
-          if(d2s){
-            access_dram(addr_src+count, data, DRIVER_READ, DATA_LENGTH/8);
-          }
-          break;
-        case sWrite:
-          if(d2s){
-            access_sram(addr_dst+count, data, DRIVER_WRITE, DATA_LENGTH/8);
-          }
-          break;
-        case sInt:
-          interrupt.write(1);
-          break;
-      }
-      wait( sc_time(CLK_CYCLE, SC_NS) );
-    }
+  tlm::tlm_sync_enum status;
+  status = vskiToMem[get_PortId(u32Addr)]->nb_transport_fw( *tlmTrans, tlmPhase, delay );
+  if(status == tlm::TLM_ACCEPTED){  
+    bMemAvailable[get_PortId(u32Addr)] = 0;
+    return SUCCESS;
   }
+}
 
-  // TLM-2 backward non-blocking transport method
-
-  tlm::tlm_sync_enum DMAC::nb_transport_bw( tlm::tlm_generic_payload& trans,
-                                              tlm::tlm_phase& phase, sc_time& delay )
+void DMAC::run_thread(){
+  poInterrupt = 0;
+  DMAC_START = 0;
+  while(1)
   {
-    // The timing annotation must be honored
-    m_peq.notify( trans, phase, delay );
-    return tlm::TLM_ACCEPTED;
-  }
-
-  // Payload event queue callback to handle transactions from target
-  // Transaction could have arrived through return path or backward path
-
-  void DMAC::peq_cb(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase)
-  {
-
-    if (phase == tlm::END_REQ || (&trans == request_in_progress && phase == tlm::BEGIN_RESP))
-    {
-      // The end of the BEGIN_REQ phase
-    }
-    else if (phase == tlm::BEGIN_REQ || phase == tlm::END_RESP)
-      SC_REPORT_FATAL("TLM-2", "Illegal transaction phase received by initiator");
-
-    if (phase == tlm::BEGIN_RESP)
-    {
-      trans.release();
-      
-      tlm::tlm_phase fw_phase = tlm::END_RESP;
-      sc_time delay = sc_time(0, SC_PS);
-      if(currentState == sRead){
-        currentState = sWrite;
-        if(d2s) dram_socket->nb_transport_fw( trans, fw_phase, delay );
-      }
-      else if(currentState == sWrite){
-        if(d2s) sram_socket->nb_transport_fw( trans, fw_phase, delay);
-        if(count < size){
-          count++;
-          currentState = sRead;
+    wait(sc_time(DMAC_CLK_CYCLE, SC_NS));
+    accessStatus retStatusRead, retStatusWrite;
+    tlm::tlm_phase tlmBackwardPhase = tlm::BEGIN_RESP;
+    sc_time tlmDelay = SC_ZERO_TIME;
+    switch(currentState){
+      case sIdle:
+        if(bCommandFromController){
+          vu32ControllReg[u32AddressFromController/4] = u32DataFromController;
+          sktFromController->nb_transport_bw(*tlmTmpTrans, tlmBackwardPhase, tlmDelay);
+          bCommandFromController = 0;
+          currentState = sIdle;
+          cout<<"DMAC"<<vu32ControllReg[u32AddressFromController/4]<<endl;
         }
-        else{
+        if(DMAC_START){
+          bIsDstNHWC = TRANSPOSE_OUTPUT & 1;
+          bIsSrcNHWC = TRANSPOSE_OUTPUT & 2;
+          if(access_Mem(SRC_ADDR, u32ReadData, DRIVER_READ, DATA_LENGTH/8) == SUCCESS){
+            currentState = sTrans;
+            u32SrcWidthOffset = 1;
+            u32SrcChannelOffset = 0;
+            u32SrcHeightOffset = 0;
+            u32DstWidthOffset = 0;
+            u32DstHeightOffset = 0;
+            u32DstChannelOffset = 0;
+          }
+        }
+        break;
+
+      case sTrans:
+        if(u32DstHeightOffset == (HEIGHT - 1) &&
+           u32DstWidthOffset == (WIDTH - 1) &&
+           u32DstChannelOffset == (CHANNEL_NUM - 1) &&
+           bMemAvailable[get_PortId(get_Address(FROM_SRC))] &&
+           access_Mem(get_Address(FROM_DST), u32ReadData, DRIVER_WRITE, DATA_LENGTH/8) == SUCCESS){
+          currentState = sWaitMemWrite;
+        }
+        else if(bMemAvailable[get_PortId(get_Address(FROM_SRC))] &&
+                bMemAvailable[get_PortId(get_Address(FROM_DST))]){
+          // cout<<(int32_t)u32ReadData<<' '<<get_Address(FROM_DST)<<' '<<get_Address(FROM_SRC)<<endl;
+          u32WriteData = u32ReadData;
+          retStatusRead = access_Mem(get_Address(FROM_SRC), u32ReadData, DRIVER_READ, DATA_LENGTH/8);
+          retStatusWrite = access_Mem(get_Address(FROM_DST), u32WriteData, DRIVER_WRITE, DATA_LENGTH/8);
+          if(retStatusRead == SUCCESS && retStatusWrite == SUCCESS){
+            calculate_NextAddress(u32DstWidthOffset, u32DstHeightOffset, u32DstChannelOffset, bIsDstNHWC);
+            calculate_NextAddress(u32SrcWidthOffset, u32SrcHeightOffset, u32SrcChannelOffset, bIsSrcNHWC);
+          }
+        }
+        break;
+      
+      case sWaitMemWrite:
+        if(bMemAvailable[get_PortId(get_Address(FROM_DST))] &&
+           bMemAvailable[get_PortId(get_Address(FROM_SRC))]){
+          poInterrupt = 1;
           currentState = sInt;
         }
-      }
+          
+      case sInt:
+        if(bCommandFromController && u32AddressFromController == 0x2c && u32DataFromController == 1){
+          sktFromController->nb_transport_bw(*tlmTmpTrans, tlmBackwardPhase, tlmDelay);
+          bCommandFromController = 0;
+          currentState = sIdle;
+          DMAC_START = 0;
+          poInterrupt = 0;
+        }
+        break;
     }
   }
+}
+
+tlm::tlm_sync_enum DMAC::nb_transport_bw( int dummy,
+                                          tlm::tlm_generic_payload& trans,
+                                          tlm::tlm_phase& phase, 
+                                          sc_time& delay ){
+  // The timing annotation must be honored
+  m_peq.notify(trans, phase, delay);
+  return tlm::TLM_ACCEPTED;
+}
+
+// Payload event queue callback to handle transactions from target
+// Transaction could have arrived through return path or backward path
+void DMAC::peq_cb(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase){
+  tlm::tlm_sync_enum status;
+  sc_time delay = SC_ZERO_TIME;
+  int iPortId;
+  tlm::tlm_phase tlmForwardPhase;
+  tlm::tlm_phase tlmBackwardPhase;
+  switch(phase){
+    case tlm::BEGIN_REQ:
+      tlmBackwardPhase = tlm::END_REQ;
+      status = sktFromController->nb_transport_bw(trans, tlmBackwardPhase, delay);
+      bCommandFromController = 1;
+      u32DataFromController = *(reinterpret_cast<uint32_t*>(trans.get_data_ptr()));
+      u32AddressFromController = trans.get_address() - u32BaseAddr;
+      tlmTmpTrans = m_mm.allocate();
+      tlmTmpTrans->deep_copy_from(trans);
+      tlmTmpTrans->acquire();
+      tlmTmpTrans->acquire();
+      if(status == tlm::TLM_COMPLETED){
+        trans.release();
+        break;
+      }
+      break;
+    
+    case tlm::END_RESP:
+      trans.release();
+      break;
+    
+    case tlm::END_REQ:
+      break;
+
+    case tlm::BEGIN_RESP:
+      iPortId = get_PortId(trans.get_address());
+      trans.release();
+      tlmForwardPhase = tlm::END_RESP;
+      bMemAvailable[iPortId] = 1;
+      vskiToMem[iPortId]->nb_transport_fw(trans, tlmForwardPhase, delay);
+      break;
+  }
+}
+
+tlm::tlm_sync_enum DMAC::nb_transport_fw(tlm::tlm_generic_payload& trans,
+                                         tlm::tlm_phase& phase,
+                                         sc_time& delay){
+  m_peq.notify(trans, phase, delay);
+  return tlm::TLM_ACCEPTED;
+}
+
+int DMAC::get_PortId(uint32_t u32Addr){
+  if(u32Addr < DRAM4_BASE + DRAM4_SIZE){
+    return 0;
+  }
+  else if(u32Addr < OUTPUT_SRAM0_BASE){
+    return 1;
+  }
+  else if(u32Addr < DMAC_BASE){
+    return 2;
+  }
+  else{
+    assert(false);
+  }
+}
+
+uint32_t DMAC::get_Address(bool is_Src){
+  uint32_t u32TmpAddr;
+  if(is_Src){
+    if(bIsSrcNHWC){
+      u32TmpAddr = SRC_ADDR +
+                   4 * (SECONDARY_STRIDE_SRC * u32SrcWidthOffset +
+                        PRIMARY_STRIDE_SRC * u32SrcHeightOffset + 
+                        u32SrcChannelOffset);
+    }
+    else{
+      u32TmpAddr = SRC_ADDR +
+                   4 * (SECONDARY_STRIDE_SRC * u32SrcHeightOffset +
+                        PRIMARY_STRIDE_SRC * u32SrcChannelOffset +
+                        u32SrcWidthOffset);
+    }
+  }
+  else{
+    if(bIsDstNHWC){
+      u32TmpAddr = DST_ADDR +
+                   4 * (SECONDARY_STRIDE_DST * u32DstWidthOffset +
+                        PRIMARY_STRIDE_DST * u32DstHeightOffset +
+                        u32DstChannelOffset);
+    }
+    else{
+      u32TmpAddr = DST_ADDR +
+                   4 * (SECONDARY_STRIDE_DST * u32DstHeightOffset +
+                        PRIMARY_STRIDE_DST * u32DstChannelOffset +
+                        u32DstWidthOffset);
+    }
+  }
+  return u32TmpAddr;
+}
+
+void DMAC::calculate_NextAddress(uint32_t& u32WidthOffset, uint32_t& u32HeightOffset, uint32_t& u32ChannelOffset, bool is_NHWC){
+  if(u32WidthOffset == WIDTH - 1 && u32HeightOffset == HEIGHT - 1){
+    u32WidthOffset = 0;
+    u32HeightOffset = 0;
+    u32ChannelOffset ++;
+  }
+  else if(u32WidthOffset == WIDTH - 1){
+    u32HeightOffset ++;
+    u32WidthOffset = 0;
+  }
+  else{
+    u32WidthOffset ++;
+  }
+}

@@ -46,7 +46,5 @@ struct DRAM_wrapper: sc_module
   sc_in<sc_uint<1> > wr_enable;
   sc_out<sc_uint<DATA_LENGTH> > dram_dataout_i;
 
-  bool tmpIsResp = 0;
-
 };
 #endif

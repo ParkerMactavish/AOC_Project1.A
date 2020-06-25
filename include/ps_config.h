@@ -9,8 +9,12 @@
 	#define TIME_SCALE (SC_NS)
 	#endif
 
-	#ifndef CLK_CYCLE
-	#define CLK_CYCLE (5.0)
+  #ifndef CLK_CYCLE
+  #define CLK_CYCLE (12.5)
+  #endif
+
+	#ifndef DMAC_CLK_CYCLE
+	#define DMAC_CLK_CYCLE (12.6)
 	#endif
 
 	// Note: When you set TIME_SCALE as SC_NS, then
@@ -26,15 +30,13 @@
 #define DATA_LENGTH (32) 
 #define DATA_BUS_BANDWIDTH (256)        //Configuable
 
-#define SIZE_TILE (16)
 #define NUM_MAC (9)
-#define NUM_PE (32)
+#define NUM_PE (8)
 
 //~~~~~~~~
 //  DRAM
 //~~~~~~~~
 #define MEM_SIZE (0x2000000) //MEM_SIZE (0x2000000)bytes,Configuable, uint32_t mem[MEMSIZE] 
-
 
 #define ROW_BIT (11)
 #define COLUMN_BIT (10)
@@ -61,3 +63,31 @@
 
 #define DRIVER_READ (0)
 #define DRIVER_WRITE (1)
+
+/**
+ * SRAM
+ */
+#define NUM_SRAM          (2)
+
+#define INPUT_SRAM_SIZE   (0x16000<<2)  //13*13*512
+#define INPUT_SRAM0_BASE  (DRAM4_BASE + DRAM4_SIZE)
+#define INPUT_SRAM1_BASE  (INPUT_SRAM0_BASE + INPUT_SRAM_SIZE)
+
+#define OUTPUT_SRAM_SIZE  (0x580000)  //INPUT_SRAM_SIZE*NUM_PE*2
+#define OUTPUT_SRAM0_BASE (INPUT_SRAM1_BASE + INPUT_SRAM_SIZE)
+#define OUTPUT_SRAM1_BASE (OUTPUT_SRAM0_BASE + OUTPUT_SRAM_SIZE)
+
+#define WEIGHT_SRAM_SIZE  (648<<2)  //9*9*NUM_PE
+#define WEIGHT_SRAM_BASE  (OUTPUT_SRAM1_BASE + OUTPUT_SRAM_SIZE)
+/**
+ * END SRAM
+ */
+
+/**
+ * DMAC CONTROLLER
+ */
+#define DMAC_RESERVED    0x100
+#define DMAC_BASE         (WEIGHT_SRAM_BASE + WEIGHT_SRAM_SIZE)
+
+#define CONTROLLER_CLK_CYCLE  40
+#define CONTROLLER_BASE   (DMAC_BASE + DMAC_RESERVED)

@@ -27,7 +27,7 @@
     trans->set_byte_enable_ptr( 0 ); // 0 indicates unused
     trans->set_dmi_allowed( false ); // Mandatory initial value
     trans->set_response_status( tlm::TLM_INCOMPLETE_RESPONSE ); // Mandatory initial value
-    // cout<<"length"<<length<<endl<<"addr"<<addr<<endl;
+
     phase = tlm::BEGIN_REQ;
 
     // Timing annotation models processing time of initiator prior to call
@@ -46,14 +46,13 @@
       temp_addr = dram_addr_i.read();
       if(wr_enable.read()){
         data_write[0] = data.read();
-        master_access(temp_addr,*data_write,1, DATA_LENGTH/8);//write  length=1
+        master_access(temp_addr,*data_write,1,1);//write  length=1
       }
       else{
-        master_access(temp_addr,*data_read,0, DATA_LENGTH/8);//read  length=1
+        master_access(temp_addr,*data_read,0,1);//read  length=1
         dram_dataout_i.write(data_read[0]);
       }
       wait( sc_time(CLK_CYCLE, SC_NS) );
-      cout<<"CLK"<<endl;
     }
   }
 
@@ -72,9 +71,9 @@
 
   void DRAM_wrapper::peq_cb(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase)
   {
+
     if (phase == tlm::END_REQ || (&trans == request_in_progress && phase == tlm::BEGIN_RESP))
     {
-      cout<<"WRRR"<<phase<<data_read[0]<<endl;
       // The end of the BEGIN_REQ phase
     }
     else if (phase == tlm::BEGIN_REQ || phase == tlm::END_RESP)
@@ -83,10 +82,10 @@
     if (phase == tlm::BEGIN_RESP)
     {
       trans.release();
+      
       tlm::tlm_phase fw_phase = tlm::END_RESP;
       sc_time delay = sc_time(0, SC_PS);
       socket->nb_transport_fw( trans, fw_phase, delay );
-      tmpIsResp = 1;
     }
   }
 

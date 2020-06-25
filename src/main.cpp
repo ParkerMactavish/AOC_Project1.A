@@ -1,20 +1,37 @@
 //#include "top_module.h"
 
-#ifdef PE
+#ifdef pe
 #include "PE_top.h"
 #elif PEwrapper
 #include "PEwrapper_top.h"
-#else
-#include "DMAC.h"
-#include "SRAM.h"
+#elif DRAMt
+#include "DRAM_timing.h"
+#elif DATA_TEST
+#include <fstream>
+#include <iostream>
+using namespace std;
+#elif sram
+#include "SRAM_top.h"
 #include "DRAM.h"
-#include "DRAM_wrapper.h"
-#include "Controller.h"
-#include"PE_wrapper.h"
-#include"PE.h"
-#include"Testbench.h"
+#include "OUTPUT_SRAM.h"
+#include "INPUT_SRAM.h"
+#include "tlm_utils/simple_initiator_socket.h"
+#elif dmac
+#include "DMAC_top.h"
+#else
+#include <fstream>
+#include <iostream>
+#include "system_to_test.h"
+#include "systemc.h"
+#include "CPU_tb.h"
+using namespace std;
+using namespace tlm;
+using namespace tlm_utils;
 #endif
 
+#define LAYER1
+
+#ifdef DATA_TEST
 SC_MODULE(wait_int){
   sc_in<bool> int_in;
   void trigger();
@@ -32,8 +49,9 @@ void wait_int::trigger(){ //<< Did you mean this instead of Thread class
     }
   }
 }
+#endif
 
-#ifdef PE
+#ifdef pe
 int sc_main(int argc, char* argv[]){
   PE_TOP* top = new PE_TOP("TOP");
   sc_start();
@@ -45,131 +63,218 @@ int sc_main(int argc, char* argv[]){
   sc_start();
   return 0;
 }
+#elif DRAMt
+int sc_main(int argc, char* argv[]){
+  DRAM_timing* top = new DRAM_timing("TOP");
+  sc_start();
+  return 0;
+}
+#elif DATA_TEST
+int main(){
+  fstream fsinData = fstream("./data/DRAM_INPUT/Standard_NCHW/data.txt", ios::in), 
+          fsinWeight = fstream("./data/DRAM_INPUT/Standard_NCHW/weight_3x3.txt", ios::in);
+  int index = 0, tmpData;
+  while(!fsinData.eof()){
+    fsinData>>tmpData;
+    index ++;
+  }
+  cout<<index<<endl;
+  index = 0;
+  while(fsinWeight){
+    fsinWeight>>tmpData;
+    index ++;
+  }
+  cout<<index<<endl;
+
+  return 0;
+}
+#elif sram
+int sc_main(int argc, char* argv[]){
+  SRAM_top* top = new SRAM_top("top");
+  // DRAM* UUT = new DRAM("UUT");
+  ISRAM* OSRAM0 = new ISRAM("OSRAM0", INPUT_SRAM0_BASE, (INPUT_SRAM_SIZE << 1));
+
+  top->socket0(OSRAM0->sktFromDMAC);
+  top->socket1(OSRAM0->sktFromController);
+  sc_start();
+  for(int i = 0; i < INPUT_SRAM_SIZE/4; i ++){
+    cout<<OSRAM0->u32Mem[i]<<endl;
+  }
+  return 0;
+}
+#elif dmac
+int sc_main(int argc, char* argv[]){
+  DMAC_top* top = new DMAC_top("top", "../data/DMAC_Test.txt");
+  sc_start();
+}
 #else
 int sc_main(int argc, char* argv[])
 {
-  // DRAM_wrapper *dram_wrapper; //initiator
-  DMAC *dmac;
-  DRAM *dram;
-  SRAM *sram;   //target
-  DRAM_wrapper *dram_wrapper;
-  wait_int *wait_self;
-
-//signal
-  sc_signal<sc_uint<ADDR_LENGTH>> addr_src, addr_dst, size;
-  sc_signal<sc_uint<1>> start;
-  sc_signal<bool> d2s;
-  sc_signal<bool> interrupt;
-
-  dmac = new DMAC("dmac");
-  dram = new DRAM("dram");
-  sram = new SRAM("sram");
-  // dram_wrapper = new DRAM_wrapper("dram_wrapper");
-  wait_self = new wait_int("wait");
-
-  // sc_signal<sc_uint<ADDR_LENGTH>> m_addr;
-  // sc_signal<sc_uint<DATA_LENGTH>> wr_data, data_out;
-  // sc_signal<sc_uint<1>> wr_enable;
-  // dram_wrapper->dram_addr_i(m_addr);
-  // dram_wrapper->data(wr_data);
-  // dram_wrapper->wr_enable(wr_enable);
-  // dram_wrapper->dram_dataout_i(data_out);
-  // dram_wrapper->socket.bind(dram->socket);
-
-  dmac->paddr_src(addr_src);
-  dmac->paddr_dst(addr_dst);
-  dmac->psize(size);
-  dmac->pd2s(d2s);
-  dmac->start(start);
-  dmac->interrupt(interrupt);
-  dmac->dram_socket(dram->socket);
-  dmac->sram_socket(sram->socket);
+  SYSTEM_TO_TEST* UUT = new SYSTEM_TO_TEST("UUT");
+  CPU* dummyCPU = new CPU("dummyCPU");
+  sc_signal<bool> sgIntFromCtrlToCPU;
+  dummyCPU->skiToController(UUT->CTRL0.sktFromCPU);
+  dummyCPU->piInterruptFromController(sgIntFromCtrlToCPU);
+  UUT->CTRL0.poInterruptToCPU(sgIntFromCtrlToCPU);
 
 
-  wait_self->int_in(interrupt);
-
-
-
-//   char* name[20];
-//   int num = 25;
-//   sc_signal<uint32_t>  sig[num];
-//   sc_out<uint32_t> _mem[num];
-//   for(int i=0; i<num; i++)
-//     _mem[i](sig[i]);
-//   for(int i=0; i<num; i++)
-//     _mem[i].write(sram->mem[i+0x100000]);
-
-//   int j=0;
-//   sc_trace_file* tf = sc_create_vcd_trace_file("wave");
-//  for(int i = 0x100000; i < 0x100000+num; i ++){
-//    sprintf(name,"%x\0",i);
-//     sc_trace(tf,sig[j],name);
-//     j++;
-//   }
+  #ifdef LAYER1
+  /**
+   * @ First Layer
+   * @{
+   */
+  cout << "*******    First Layer     *******"<<endl;
+  ifstream fs_in0("./data/DRAM_INPUT/model1/layer1/layer1_input.txt");
+  int tmpInt;
+  cout<<"Reading Input Stage"<<endl;
+  for(int i = 0; i < 3; i ++){
+    for(int j = 0; j < 416; j ++){
+      for(int k = 0; k < 416; k ++){
+        fs_in0 >> tmpInt;
+        UUT->DRAM0.mem[i*416*416+j*416+k] = tmpInt;
+      }
+    }
+  }
+  fs_in0.close();
+  ifstream fs_w0("./data/DRAM_INPUT/model1/layer1/layer1_weight.txt");
+  cout<<"Reading Weight Stage"<<endl;
+  for(int i = 0; i < 16; i ++){
+    for(int j = 0; j < 3; j ++){
+      for(int k = 0; k < 9; k ++){
+        fs_w0 >> tmpInt;
+        UUT->DRAM0.mem[519168+i*9*3+j*9+k] = tmpInt;
+      }
+    }
+  }
+  fs_w0.close();
+  dummyCPU->DataForController[0] = 0;
+  dummyCPU->DataForController[1] = 519600*4;
+  dummyCPU->DataForController[2] = 519168*4;
+  dummyCPU->DataForController[3] = 0xffffffff;
+  dummyCPU->DataForController[4] = 416;
+  dummyCPU->DataForController[5] = 416;
+  dummyCPU->DataForController[6] = 3;
+  dummyCPU->DataForController[7] = 3;
+  dummyCPU->DataForController[8] = 3;
+  dummyCPU->DataForController[9] = 16;
+  dummyCPU->DataForController[10] = 0;
+  dummyCPU->DataForController[11] = 1;
+  sc_start();
+  for(int i = 0; i < 9; i ++){
+    for(int j = 0; j < 8; j ++){
+      cout<<(int32_t)UUT->OSRAM0.u32Mem[i*8+j+((WEIGHT_SRAM_BASE-OUTPUT_SRAM0_BASE)>>2)]<<' ';
+    }   
+    cout<<endl;
+  }
   
+  bool flag = true;
+  if(flag) cout<<"INPUTS1 Correct"<<endl;
+  for(int i = 0; i < NUM_PE; i ++){
+    for(int j = 0; j < NUM_MAC; j ++){
+      cout<<UUT->CTRL0.vPE[i]->vsgMACWeight[j]<<' ';
+    }
+    cout<<endl;
+  }
+  flag = true;
+  fstream fs_golden("./data/DRAM_INPUT/model1/layer1/layer1_output.txt");
+  int32_t i32Tmp;
+  for(int i = 0; i < 16; i ++){
+    for(int j = 0; j < 414; j ++){
+      for(int k = 0; k < 414; k ++){
+        fs_golden>>i32Tmp;
+        if((int32_t)UUT->DRAM0.mem[519600+i*414*414+j*414+k] != i32Tmp){
+          cout<<"ERROR"<<i<<", "<<j<<", "<<k<<", GOLDEN: "<<i32Tmp<<", WRONG:"<<(int32_t)UUT->DRAM0.mem[519312+i*414*414+j*414+k]<<endl;
+          flag = false;
+        }
+        cout<<(int32_t)UUT->DRAM0.mem[519312+i*414*414+j*414+k]<<' ';
+      }
+      // cout<<endl;
+    }
+    // cout<<endl;
+  }
+  fs_golden.close();
+  if(flag) cout<<"***   Layer1 all right    ***"<<endl;
+  /**
+   * @}
+   * @ End First Layer
+   */
+  #endif
 
-// -----------------Controller--------------------------//
-sc_signal<bool> enable;
-sc_signal<bool> which;
-//sc_signal<bool> finish;
-//sc_signal<bool>  pe_enable;
-//sc_signal<uint32_t>  addr[PESIZE];
-Controller* con = new Controller("controller");
-PEwrapper * wrapper  = new PEwrapper("pewrapper");
-con->enable(enable);
-con->which(which);
-wrapper->pe_write=&(con->pe_write);
-con->pe_enable=&(wrapper->pe_enable);
-
-con->sram_ifirst = sram;
-con->sram_weight=sram;
-con->pe_mem=PE::pe_mem;
-for(int i=0; i<NUM_PE; i++)
-  con->pe_local[i]=wrapper->pe_vec[i]->pe_local;
-con->input_len = 5; 
-PE::input_len = 5;
-enable.write(1);
-which.write(0);
-
-for(int i = 0x000000; i < 0x000000+SIZE_TILE; i ++){
-    sram->mem[i]=i;
+  #ifdef LAYER2
+  /**
+   * @ Second Layer
+   * @{
+   */
+  cout << "*******    Second Layer     *******"<<endl;
+  ifstream fs_in0("./data/DRAM_INPUT/model1/layer2/layer2_input.txt");
+  cout<<"Reading Input Stage"<<endl;
+  int tmpInt;
+  for(int i = 0; i < 32; i ++){
+    for(int j = 0; j < 104; j ++){
+      for(int k = 0; k < 104; k ++){
+        fs_in0 >> tmpInt;
+        UUT->DRAM0.mem[i*104*104+j*104+k] = tmpInt;
+      }
+    }
+  }
+  fs_in0.close();
+  ifstream fs_w0("./data/DRAM_INPUT/model1/layer2/layer2_weight.txt");
+  cout<<"Reading Weight Stage"<<endl;
+  for(int i = 0; i < 64; i ++){
+    for(int j = 0; j < 32; j ++){
+      for(int k = 0; k < 9; k ++){
+        fs_w0 >> tmpInt;
+        UUT->DRAM0.mem[346112+i*9*32+j*9+k] = tmpInt;
+      }
+    }
+  }
+  fs_w0.close();
+  dummyCPU->DataForController[0] = 0;
+  dummyCPU->DataForController[1] = 364544*4;
+  dummyCPU->DataForController[2] = 346112*4;
+  dummyCPU->DataForController[3] = 0xffffffff;
+  dummyCPU->DataForController[4] = 104;
+  dummyCPU->DataForController[5] = 104;
+  dummyCPU->DataForController[6] = 32;
+  dummyCPU->DataForController[7] = 3;
+  dummyCPU->DataForController[8] = 3;
+  dummyCPU->DataForController[9] = 64;
+  dummyCPU->DataForController[10] = 0;
+  dummyCPU->DataForController[11] = 1;
+  sc_start();
+  for(int i = 0; i < 9; i ++){
+    for(int j = 0; j < 8; j ++){
+      cout<<(int32_t)UUT->OSRAM0.u32Mem[i*8+j+((WEIGHT_SRAM_BASE-OUTPUT_SRAM0_BASE)>>2)]<<' ';
+    }   
+    cout<<endl;
   }
 
-  cout<<hex;
-  // for(int i = 0; i < 1000; i ++){
-  //   dram->mem[i] = i+1000;
-  // }
-  // addr_src.write(0x000000);
-  // addr_dst.write(0x000000);
-  // size.write(100);
-  // d2s.write(1);
-  // sc_start(1, SC_NS);
-  // start.write(1);
+  bool flag = true;
+  int32_t i32Tmp;
+  ifstream fs_golden("./data/DRAM_INPUT/model1/layer2/layer2_output.txt");
+  for(int i = 0; i < 64; i ++){
+    for(int j = 0; j < 102; j ++){
+      for(int k = 0; k < 102; k ++){
+        fs_golden>>i32Tmp;
+        if((int32_t)UUT->DRAM0.mem[364544+i*102*102+j*102+k] != i32Tmp){
+          cout<<"ERROR"<<i<<", "<<j<<", "<<k<<", GOLDEN: "<<i32Tmp<<", WRONG:"<<(int32_t)UUT->DRAM0.mem[364544+i*102*102+j*102+k]<<endl;
+          flag = false;
+        }
+        // cout<<(int32_t)UUT->DRAM0.mem[519312+i*414*414+j*414+k]<<' ';
+      }
+      // cout<<endl;
+    }
+    // cout<<endl;
+  }
+  if(flag) cout<<"***   Layer2 all right    ***"<<endl;
+  /**
+   * @}
+   * @ End Second Layer
+   */
+  #endif
 
-  // for(int i = 0; i < 10; i ++){
-  //   m_addr.write(i*4);
-  //   wr_enable.write(0);
-  //   sc_start(5, SC_NS);
-  //   cout<<data_out.read()<<endl;
-  // }
-  sc_start(10*CLK_CYCLE, SC_NS);
-  // for(int i = 0x000000; i < 0x000000+25; i ++){
-  //   cout<<i<<' '<<sram->mem[i]<<endl;
-  // }
-
-
-//   cout<<"---------------Controller-------------------"<<endl;
-//   cout<<"ibuffer:"<<endl;
-//   for(int i = 0; i <SIZE_TILE; i ++){
-//     cout<<i<<' '<<con->ibuffer[i]<<endl;
-//   }
-// cout<<"wbuffer:"<<endl;
-//  for(int i = 0; i <SIZE_MAC; i ++)
-//       cout<<i<<' '<<con->wbuffer[0][i]<<endl;
-
-  
   cout << "\n*****    Finish     *****\n";
 
   return 0;
 }
-#endif
+#endif  

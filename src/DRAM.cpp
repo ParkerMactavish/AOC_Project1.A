@@ -42,7 +42,6 @@ void DRAM::peq_cb(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase)
         case tlm::END_RESP:
             // On receiving END_RESP, the target can release the transaction
             // and allow other pending transactions to proceed
-            //cout<<"DRAM release"<<endl;
             trans.release();
             n_trans--;
 
@@ -60,7 +59,7 @@ void DRAM::peq_cb(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase)
             //   status = send_end_req( *end_req_pending );
             //   end_req_pending = 0;
             // }
-            
+
             break;
 
         case tlm::END_REQ:
@@ -166,7 +165,6 @@ void DRAM::send_response(tlm::tlm_generic_payload& trans)
     //response_in_progress = true;
     bw_phase = tlm::BEGIN_RESP;
     delay = SC_ZERO_TIME;
-    //cout<<"DRAM"<<endl;
     status = socket->nb_transport_bw( trans, bw_phase, delay );
 
     if (status == tlm::TLM_UPDATED) {
